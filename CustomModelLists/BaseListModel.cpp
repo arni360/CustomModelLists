@@ -1,15 +1,16 @@
 #include "BaseListModel.h"
+#include <QColor>
 
 BaseListModel::BaseListModel(QObject* i_parent)
 	: QAbstractProxyModel(i_parent)
-	, m_source(new QSortFilterProxyModel(this))
+	, m_source(nullptr)
 {
-	setSourceModel(m_source);
 }
 
-void BaseListModel::set_source_model(QAbstractItemModel* i_source)
+void BaseListModel::set_source_model(QSortFilterProxyModel* i_source)
 {
-	m_source->setSourceModel(i_source);
+	m_source = i_source;
+	setSourceModel(i_source);
 	remap_data();
 	connect(m_source, &QAbstractItemModel::layoutAboutToBeChanged, this, &BaseListModel::clean_data);
 	connect(m_source, &QAbstractItemModel::layoutChanged, this, &BaseListModel::remap_data);
@@ -89,7 +90,7 @@ QVariant BaseListModel::data(const QModelIndex& index, int role) const
 			switch (role)
 			{
 			case Qt::DisplayRole:
-				return "Title : " + value.first.toString();
+				return value.first.toString();
 			case IsFilterNameRole:
 				return QVariant(true);
 			default:
@@ -122,8 +123,17 @@ QModelIndex BaseListModel::index(int row, int column, const QModelIndex& parent)
 	return createIndex(row,column,nullptr);
 }
 
+Qt::ItemFlags BaseListModel::flags(const QModelIndex& index) const
+{
+	if (index.data(IsFilterNameRole).toBool())
+		return {};
+
+	return sourceModel()->flags(mapToSource(index));
+}
+
 void BaseListModel::clean_data()
 {
+	beginResetModel();
 	m_sort_values.clear();
 }
 
@@ -132,6 +142,20 @@ void BaseListModel::remap_data()
 	for (int i = 0; i < m_source->rowCount(); ++i)
 	{
 		auto cur_value = m_source->data(m_source->index(i, 0), m_source->sortRole());
+		
+		// Exemple of sort modification
+		if (m_source->sortRole() == Qt::DisplayRole)
+		{
+			QChar c = cur_value.toString().at(0);
+			if (c.isDigit())
+			{
+				cur_value = "#";
+			}
+			else {
+				cur_value = c;
+			}
+		}
+
 		if (m_sort_values.isEmpty() || m_sort_values.last().first != cur_value)
 		{
 			m_sort_values.push_back({ cur_value,1 });
@@ -140,4 +164,12 @@ void BaseListModel::remap_data()
 			m_sort_values.last().second++;
 		}
 	}
+
+	// If one group no group 
+	if (m_sort_values.size() == 1)
+	{
+		m_sort_values.clear();
+	}
+
+	endResetModel();
 }
