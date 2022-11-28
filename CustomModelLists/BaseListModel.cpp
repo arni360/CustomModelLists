@@ -14,6 +14,10 @@ void BaseListModel::set_source_model(QSortFilterProxyModel* i_source)
 	remap_data();
 	connect(m_source, &QAbstractItemModel::layoutAboutToBeChanged, this, &BaseListModel::clean_data);
 	connect(m_source, &QAbstractItemModel::layoutChanged, this, &BaseListModel::remap_data);
+	connect(m_source, &QAbstractItemModel::rowsAboutToBeInserted, this, &BaseListModel::clean_data);
+	connect(m_source, &QAbstractItemModel::rowsInserted, this, &BaseListModel::remap_data);
+	connect(m_source, &QAbstractItemModel::rowsAboutToBeRemoved, this, &BaseListModel::clean_data);
+	connect(m_source, &QAbstractItemModel::rowsRemoved, this, &BaseListModel::remap_data);
 }
 
 int BaseListModel::columnCount(const QModelIndex& parent) const
